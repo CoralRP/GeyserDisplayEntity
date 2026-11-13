@@ -3,7 +3,11 @@ general:
   # The height of display entity
   height: 1.7
   # The y-offset of display entity
-  y-offset: -0.5
+  y-offset: 0
+  # Height of the model centre above the Bedrock entity origin, in blocks at scale 1
+  model-center: 0.5
+  # Height of a seated player's feet relative to the display, in blocks
+  seat-offset: -0.68
   # Use entity scale, instead of entity properties
   vanilla-scale: false
   vanilla-scale-multiplier: 1

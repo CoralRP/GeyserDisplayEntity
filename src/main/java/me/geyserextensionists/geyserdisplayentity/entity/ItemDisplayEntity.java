@@ -13,7 +13,11 @@ import org.cloudburstmc.protocol.bedrock.data.inventory.ItemData;
 import org.cloudburstmc.protocol.bedrock.packet.MobArmorEquipmentPacket;
 import org.cloudburstmc.protocol.bedrock.packet.MobEquipmentPacket;
 import org.cloudburstmc.protocol.bedrock.packet.MoveEntityAbsolutePacket;
+import org.geysermc.geyser.api.util.Identifier;
+import org.geysermc.geyser.entity.properties.type.FloatProperty;
+import org.geysermc.geyser.entity.VanillaEntities;
 import org.geysermc.geyser.entity.spawn.EntitySpawnContext;
+import org.geysermc.geyser.entity.type.Entity;
 import org.geysermc.geyser.entity.type.Tickable;
 import org.geysermc.geyser.entity.vehicle.ClientVehicle;
 import org.geysermc.geyser.item.Items;
@@ -33,6 +37,9 @@ import org.geysermc.mcprotocollib.protocol.data.game.item.component.DataComponen
 
 import java.util.Arrays;
 import java.util.List;
+
+import static me.geyserextensionists.geyserdisplayentity.GeyserDisplayEntity.MAX_VALUE;
+import static me.geyserextensionists.geyserdisplayentity.GeyserDisplayEntity.MIN_VALUE;
 
 public class ItemDisplayEntity extends SlotDisplayEntity implements Tickable {
 
@@ -77,10 +84,61 @@ public class ItemDisplayEntity extends SlotDisplayEntity implements Tickable {
         if (head != null) placeHead();
     }
 
+    public void seatPassenger(Entity passenger) {
+        float lift = bedrockPosition().getY() - position.getY();
+        FileConfiguration general = GeyserDisplayEntity.getExtension().getConfigManager().getGeneralConfig();
+        float seatOffset = general == null ? 0F : (float) general.getDouble("seat-offset");
+        passenger.setRiderSeatPosition(Vector3f.from(0, VanillaEntities.PLAYER.offset() + seatOffset - lift, 0));
+        passenger.updateBedrockMetadata();
+    }
+
     @Override
     public Vector3f bedrockPosition() {
-        if (config == null) return super.bedrockPosition();
-        return super.bedrockPosition().up((float) config.getDouble("y-offset"));
+        Vector3f base = super.bedrockPosition();
+        FileConfiguration general = GeyserDisplayEntity.getExtension().getConfigManager().getGeneralConfig();
+        if (config == null || general == null) return base;
+        Vector3f offset = billboard == BILLBOARD_FIXED ? orient(translation) : translation;
+        double lift = config.getDouble("y-offset") - general.getDouble("model-center") * renderScale();
+        return base.add(offset).up((float) lift);
+    }
+
+    @Override
+    public void setTranslation(EntityMetadata<Vector3f, ?> entityMetadata) {
+        super.setTranslation(entityMetadata);
+        refreshPosition();
+    }
+
+    @Override
+    public void setScale(EntityMetadata<Vector3f, ?> entityMetadata) {
+        super.setScale(entityMetadata);
+        refreshPosition();
+    }
+
+    @Override
+    protected void pushTranslationProperties() {
+        propertyManager.addProperty(new FloatProperty(Identifier.of("geyser:t_x"), MAX_VALUE, MIN_VALUE, 0F), displayTranslation.getX() * 16);
+        propertyManager.addProperty(new FloatProperty(Identifier.of("geyser:t_y"), MAX_VALUE, MIN_VALUE, 0F), displayTranslation.getY() * 16);
+        propertyManager.addProperty(new FloatProperty(Identifier.of("geyser:t_z"), MAX_VALUE, MIN_VALUE, 0F), displayTranslation.getZ() * 16);
+    }
+
+    private void refreshPosition() {
+        if (!valid) return;
+        moveAbsoluteRaw(position, yaw, pitch, headYaw, onGround, false);
+    }
+
+    private Vector3f orient(Vector3f vector) {
+        double yawRadians = Math.toRadians(-getYaw());
+        double pitchRadians = Math.toRadians(getPitch());
+        double y = vector.getY() * Math.cos(pitchRadians) - vector.getZ() * Math.sin(pitchRadians);
+        double z = vector.getY() * Math.sin(pitchRadians) + vector.getZ() * Math.cos(pitchRadians);
+        double x = vector.getX() * Math.cos(yawRadians) + z * Math.sin(yawRadians);
+        double rotatedZ = -vector.getX() * Math.sin(yawRadians) + z * Math.cos(yawRadians);
+        return Vector3f.from(x, y, rotatedZ);
+    }
+
+    private float renderScale() {
+        if (config == null || !config.getBoolean("vanilla-scale")) return 1F;
+        return (scale.getX() + scale.getY() + scale.getZ()) / 3 * (float) config.getDouble("vanilla-scale-multiplier");
     }
 
     public void setDisplayedItem(EntityMetadata<ItemStack, ?> entityMetadata) {

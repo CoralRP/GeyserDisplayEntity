@@ -10,6 +10,7 @@ import org.geysermc.event.subscribe.Subscribe;
 import org.geysermc.geyser.api.command.Command;
 import org.geysermc.geyser.api.command.CommandSource;
 import org.geysermc.geyser.api.entity.property.GeyserEntityProperty;
+import org.geysermc.geyser.api.event.java.ServerUpdateEntityPassengersEvent;
 import org.geysermc.geyser.api.event.lifecycle.GeyserDefineCommandsEvent;
 import org.geysermc.geyser.api.event.lifecycle.GeyserDefineEntitiesEvent;
 import org.geysermc.geyser.api.event.lifecycle.GeyserDefineEntityPropertiesEvent;
@@ -18,6 +19,7 @@ import org.geysermc.geyser.api.extension.Extension;
 import org.geysermc.geyser.api.util.Identifier;
 import org.geysermc.geyser.entity.*;
 import org.geysermc.geyser.entity.type.Entity;
+import org.geysermc.geyser.entity.type.player.PlayerEntity;
 import org.geysermc.mcprotocollib.protocol.data.game.entity.metadata.MetadataTypes;
 import org.geysermc.mcprotocollib.protocol.data.game.entity.type.EntityType;
 
@@ -106,6 +108,13 @@ public class GeyserDisplayEntity implements Extension {
         }
 
         logger().info("Done");
+    }
+
+    @Subscribe
+    public void onMount(ServerUpdateEntityPassengersEvent.Mount event) {
+        if (!(event.vehicle() instanceof ItemDisplayEntity display)) return;
+        if (!(event.addedPassenger() instanceof PlayerEntity passenger)) return;
+        display.seatPassenger(passenger);
     }
 
     @Subscribe
